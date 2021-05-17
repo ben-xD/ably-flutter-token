@@ -19,13 +19,13 @@ class Auth {
   }
 
   connect() async {
-    // Used to create a clientId when a client doesn't have one.
-    final tokenRequest = await createTokenRequest();
-    _clientId = tokenRequest["clientId"];
-    print("Client ID from token request is $_clientId");
+    // // Used to create a clientId when a client doesn't have one.
+    // final tokenRequest = await createTokenRequest();
+    // _clientId = tokenRequest["clientId"];
+    // print("Client ID from token request is $_clientId");
 
     final clientOptions = ably.ClientOptions()
-      ..clientId = _clientId
+      // ..clientId = _clientId
       ..autoConnect = false
       ..authCallback = (TokenParams tokenParams) async {
         try {
