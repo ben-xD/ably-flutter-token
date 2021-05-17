@@ -1,16 +1,5 @@
-# ably_flutter_demo
+# Using Token Auth in Ably Flutter 
 
-A new Flutter project.
+This is a basic flutter app which shows how to use [Token Authentication](https://ably.com/documentation/core-features/authentication#token-authentication) for [Ably](https://ably.com).
 
-## Getting Started
-
-This project is a starting point for a Flutter application.
-
-A few resources to get you started if this is your first Flutter project:
-
-- [Lab: Write your first Flutter app](https://flutter.dev/docs/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://flutter.dev/docs/cookbook)
-
-For help getting started with Flutter, view our
-[online documentation](https://flutter.dev/docs), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+Warning: In iOS, secure transport is disabled to allow using a local http server to perform authentication. You can remove this by deleting the `NSAppTransportSecurity` dictionary in `ios/Info.plist`

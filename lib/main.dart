@@ -51,14 +51,21 @@ class _MyHomePageState extends State<MyHomePage> {
   int _counter = 0;
   // final _auth = Auth();
   Auth _auth;
+  bool buttonsEnabled = false;
 
-  _MyHomePageState() {
-    asyncConstructor();
+  @override
+  initState() {
+    super.initState();
+    asyncInitState();
   }
 
-  Future<void> asyncConstructor() async {
+  Future<void> asyncInitState() async {
     _auth = Auth();
     await _auth.connect();
+    // Enable the buttons
+    setState(() {
+      buttonsEnabled = true;
+    });
   }
 
   void _incrementCounter() {
@@ -90,14 +97,14 @@ class _MyHomePageState extends State<MyHomePage> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: <Widget>[
-            TextButton(onPressed: () {
+            TextButton(onPressed: buttonsEnabled ? () {
               final interface = _auth.getConnectionInterface();
               print("Connection state: ${interface.state}. Error reason?: ${interface.errorReason}");
-            }, child: Text("Print connection status")),
-            TextButton(onPressed: () async {
+            } : null, child: Text("Print connection status")),
+            TextButton(onPressed: buttonsEnabled ? () async {
               await _auth.joinPresence();
               print(await _auth.getPresence());
-            }, child: Text("Get presence"))
+            } : null, child: Text("Get presence"))
           ],
         ),
       ),
