@@ -1,9 +1,11 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="com.example.ably_flutter_demo">
+    <uses-permission android:name="android.permission.INTERNET" />
    <application
         android:label="ably_flutter_demo"
+       android:usesCleartextTraffic="true"
         android:icon="@mipmap/ic_launcher">
-        <activity
+       <activity
             android:name=".MainActivity"
             android:launchMode="singleTop"
             android:theme="@style/LaunchTheme"

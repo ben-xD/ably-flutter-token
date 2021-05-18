@@ -8,19 +8,16 @@ import 'package:super_hero/super_hero.dart';
 
 // My authentication server is hosted in a serverless function (firebase function)
 // Example serverless function written in typescript can be found here: https://github.com/ben-xD/Club/tree/main/functions
-// String baseUrl = "https://region-app.cloudfunctions.net/app";
-// For connecting to a local server from an iOS simulator
-String baseUrl = "http://127.0.0.1:8000/club2d-app/europe-west2/app";
-// For connecting to a local server from an Android Emulator
-// String baseUrl = "http://10.0.2.2:8000/club2d-app/europe-west2/app";
+String _baseUrl = "https://your_auth_service_url.net/app";
+// Bug in flutter: Using a local IP on Android causes connection closed before full header was received https://stackoverflow.com/questions/55879550/how-to-fix-httpexception-connection-closed-before-full-header-was-received
 
-class Auth {
+class AuthService {
   ably.Realtime _ablyClient;
   ably.RealtimeChannel _mainChannel;
   String _username;
   String _clientId;
 
-  Auth() {
+  AuthService() {
     _username = SuperHero.random();
   }
 
@@ -29,7 +26,6 @@ class Auth {
       // Used to create a clientId when a client doesn't have one.
       final tokenRequest = await createTokenRequest();
       _clientId = tokenRequest["clientId"];
-      print("Client ID from token request is $_clientId");
 
       final clientOptions = ably.ClientOptions()
         ..clientId = _clientId
@@ -40,13 +36,14 @@ class Auth {
             // the quickest one is the TokenRequest. You can use this to get a
             //TokenDetails (which contains a token field) or let ably do it for you.
             // This call should respect the clientId given to it.
-            final tokenRequestMap =
-            await createTokenRequest(tokenParams: tokenParams);
-            _clientId = tokenRequestMap["clientId"];
-            print("Given clientId ${tokenRequestMap["clientId"]}");
+            final tokenRequestMap = await createTokenRequest(tokenParams: tokenParams);
+            print(tokenRequestMap);
+            if (_clientId != tokenRequestMap["clientId"]) {
+              throw "clientId provided by server ${tokenRequestMap["clientId"]} doesn't match current clientId $_clientId.";
+            }
             return ably.TokenRequest.fromMap(tokenRequestMap);
           } catch (e) {
-            // Log error
+            print("Something went wrong in the authCallback:");
             print(e);
           }
         };
@@ -55,7 +52,6 @@ class Auth {
       await this._ablyClient.connect();
       print(this._ablyClient);
     } catch (e) {
-      print("Error...");
       print(e);
     }
   }
@@ -65,7 +61,7 @@ class Auth {
   }
 
   createTokenRequest({TokenParams tokenParams}) async {
-    var createTokenRequestUrl = baseUrl + "/createTokenRequest";
+    var createTokenRequestUrl = _baseUrl + "/createTokenRequest";
     if (tokenParams != null) {
       final queryString =
           Uri(queryParameters: {"clientId": tokenParams.clientId}).query;
@@ -73,14 +69,14 @@ class Auth {
     }
 
     try {
-    var response = await http.post(Uri.parse(createTokenRequestUrl));
+    var response = await http.post(Uri.parse(createTokenRequestUrl)).timeout(Duration(seconds: 10));
     if (response.statusCode != HttpStatus.ok) {
       throw HttpException("Server didn't return success."
           ' Status: ${response.statusCode}');
     }
     return jsonDecode(response.body) as Map;
     } catch (e) {
-      print("ERROR!");
+      print("Something went wrong in the CreateToken HTTP request...");
       print(e);
     }
   }
