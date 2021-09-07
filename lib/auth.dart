@@ -1,34 +1,25 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:ably_flutter/ably_flutter.dart' as ably;
 import 'package:ably_flutter/ably_flutter.dart';
 import 'package:http/http.dart' as http;
-import 'package:super_hero/super_hero.dart';
 
-// My authentication server is hosted in a serverless function (firebase function)
-// Example serverless function written in typescript can be found here: https://github.com/ben-xD/Club/tree/main/functions
+// My authentication server is hosted in a serverless function, the code written in Typescript can be found:
+// https://github.com/ben-xD/Club/blob/4cc408554099a4ddebab1aa7422e8cdbb170ce5f/functions/src/index.ts#L35-L43
 String _baseUrl = "https://your_auth_service_url.net/app";
 // Bug in flutter: Using a local IP on Android causes connection closed before full header was received https://stackoverflow.com/questions/55879550/how-to-fix-httpexception-connection-closed-before-full-header-was-received
 
-class AuthService {
-  ably.Realtime _ablyClient;
-  ably.RealtimeChannel _mainChannel;
-  String _username;
-  String _clientId;
-
-  AuthService() {
-    _username = SuperHero.random();
-  }
+class AblyService {
+  String _channelName = "rooms:lobby";
+  late Realtime _ablyRealtimeClient;
+  late Rest _ablyRestClient;
+  late RealtimeChannel _mainChannel;
+  String _username = 'A random superhero name';
 
   connect() async {
     try {
       // Used to create a clientId when a client doesn't have one.
-      final tokenRequest = await createTokenRequest();
-      _clientId = tokenRequest["clientId"];
-
-      final clientOptions = ably.ClientOptions()
-        ..clientId = _clientId
+      final clientOptions = ClientOptions()
         ..autoConnect = false
         ..authCallback = (TokenParams tokenParams) async {
           try {
@@ -36,31 +27,28 @@ class AuthService {
             // the quickest one is the TokenRequest. You can use this to get a
             //TokenDetails (which contains a token field) or let ably do it for you.
             // This call should respect the clientId given to it.
-            final tokenRequestMap = await createTokenRequest(tokenParams: tokenParams);
+            final tokenRequestMap =
+            await createTokenRequest(tokenParams: tokenParams);
             print(tokenRequestMap);
-            if (_clientId != tokenRequestMap["clientId"]) {
-              throw "clientId provided by server ${tokenRequestMap["clientId"]} doesn't match current clientId $_clientId.";
-            }
-            return ably.TokenRequest.fromMap(tokenRequestMap);
+            return TokenRequest.fromMap(tokenRequestMap);
           } catch (e) {
             print("Something went wrong in the authCallback:");
-            print(e);
+            rethrow;
           }
         };
-      this._ablyClient = new ably.Realtime(options: clientOptions);
-
-      await this._ablyClient.connect();
-      print(this._ablyClient);
+      this._ablyRealtimeClient = new Realtime(options: clientOptions);
+      this._ablyRestClient = new Rest(options: clientOptions);
+      await this._ablyRealtimeClient.connect();
     } catch (e) {
       print(e);
     }
   }
 
   ConnectionInterface getConnectionInterface() {
-    return this._ablyClient.connection;
+    return this._ablyRealtimeClient.connection;
   }
 
-  createTokenRequest({TokenParams tokenParams}) async {
+  Future<Map<String, dynamic>> createTokenRequest({TokenParams? tokenParams}) async {
     var createTokenRequestUrl = _baseUrl + "/createTokenRequest";
     if (tokenParams != null) {
       final queryString =
@@ -69,33 +57,38 @@ class AuthService {
     }
 
     try {
-    var response = await http.post(Uri.parse(createTokenRequestUrl)).timeout(Duration(seconds: 10));
-    if (response.statusCode != HttpStatus.ok) {
-      throw HttpException("Server didn't return success."
-          ' Status: ${response.statusCode}');
-    }
-    return jsonDecode(response.body) as Map;
+      var response = await http
+          .post(Uri.parse(createTokenRequestUrl))
+          .timeout(Duration(seconds: 5));
+      if (response.statusCode != HttpStatus.ok) {
+        throw HttpException("Server didn't return success."
+            ' Status: ${response.statusCode}');
+      }
+      return jsonDecode(response.body) as Map<String, dynamic>;
     } catch (e) {
       print("Something went wrong in the CreateToken HTTP request...");
-      print(e);
+      throw e;
     }
   }
 
   Future<void> joinPresence() async {
-    _mainChannel = this._ablyClient.channels.get("Marvel Universe");
+    _mainChannel = this._ablyRealtimeClient.channels.get(_channelName);
     final presenceData = Map();
     presenceData["username"] = _username;
 
-    // If your clientId is null here, that means you haven't connected?
     print("Client id is ${_mainChannel.realtime.options.clientId}");
     await _mainChannel.presence.enter(presenceData);
   }
 
-  Future<List<ably.PresenceMessage>> getPresence() async {
+  Future<List<PresenceMessage>> getPresence() async {
     return await this._mainChannel.presence.get(null);
   }
 
+  Future<void> sendMessageUsingRestClient() async {
+    await this._ablyRestClient.channels.get(_channelName).publish(message: Message(name: "Hello Ben"));
+  }
+
   close() {
-    _ablyClient.close();
+    _ablyRealtimeClient.close();
   }
 }

@@ -1,7 +1,8 @@
-import 'package:ably_flutter/ably_flutter.dart' as ably;
-import 'package:ably_flutter_demo/auth.dart';
+import 'package:ably_flutter/ably_flutter.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+
+import 'auth.dart';
 
 void main() {
   runApp(MyApp());
@@ -22,7 +23,7 @@ class MyApp extends StatelessWidget {
 }
 
 class MyHomePage extends StatefulWidget {
-  MyHomePage({Key key, this.title}) : super(key: key);
+  MyHomePage({required this.title, Key? key}) : super(key: key);
 
   final String title;
 
@@ -31,9 +32,9 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
-  final _auth = AuthService();
+  final _ably = AblyService();
   bool buttonsEnabled = false;
-  Future<List<ably.PresenceMessage>> _presence = Future.value([]);
+  Future<List<PresenceMessage>> _presence = Future.value([]);
 
   @override
   initState() {
@@ -42,7 +43,7 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   Future<void> asyncInitState() async {
-    await _auth.connect();
+    await _ably.connect();
     // Enable the buttons
     setState(() {
       buttonsEnabled = true;
@@ -59,32 +60,53 @@ class _MyHomePageState extends State<MyHomePage> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: <Widget>[
-            TextButton(onPressed: buttonsEnabled ? () {
-              final interface = _auth.getConnectionInterface();
-              print("Connection state: ${interface
-                  .state}. Error reason?: ${interface.errorReason}");
-            } : null, child: Text("Print connection status")),
-            TextButton(onPressed: buttonsEnabled ? () async {
-              await _auth.joinPresence();
-              print(await _auth.getPresence());
-            } : null, child: Text("Join presence")),
-            TextButton(onPressed: buttonsEnabled ? () async {
-              setState(() {
-                _presence = _auth.getPresence();
-              });
-            } : null, child: Text("Get presence")),
+            TextButton(
+                onPressed: buttonsEnabled
+                    ? () {
+                  final interface = _ably.getConnectionInterface();
+                  print(
+                      "Connection state: ${interface.state}. Error reason?: ${interface.errorReason}");
+                }
+                    : null,
+                child: Text("Print connection status")),
+            TextButton(
+                onPressed: buttonsEnabled
+                    ? () async {
+                  _ably.sendMessageUsingRestClient();
+                }
+                    : null,
+                child: Text("Publish a rest message")),
+            TextButton(
+                onPressed: buttonsEnabled
+                    ? () async {
+                  await _ably.joinPresence();
+                  print(await _ably.getPresence());
+                }
+                    : null,
+                child: Text("Join presence")),
+            TextButton(
+                onPressed: buttonsEnabled
+                    ? () async {
+                  setState(() {
+                    _presence = _ably.getPresence();
+                  });
+                }
+                    : null,
+                child: Text("Get presence")),
             Flexible(
-              child: FutureBuilder(future: _presence,
+              child: FutureBuilder(
+                  future: _presence,
                   builder: (context,
-                      AsyncSnapshot<List<ably.PresenceMessage>> snapshot) {
+                      AsyncSnapshot<List<PresenceMessage>> snapshot) {
                     if (snapshot.hasData) {
                       final presenceMessages = snapshot.data;
                       return Align(
                         alignment: Alignment.center,
                         child: ListView.builder(
-                            itemCount: presenceMessages.length, itemBuilder: (context, index) {
-                          return Text(presenceMessages[index].clientId);
-                        }),
+                            itemCount: presenceMessages!.length,
+                            itemBuilder: (context, index) {
+                              return Text(presenceMessages[index].clientId ?? "No client ID");
+                            }),
                       );
                     }
                     if (snapshot.hasError) {
@@ -93,6 +115,9 @@ class _MyHomePageState extends State<MyHomePage> {
                     return Text("No presence yet");
                   }),
             ),
+            TextButton(onPressed: () {
+              _ably.sendMessageUsingRestClient();
+            }, child: Text("Send message from rest to realtime"))
           ],
         ),
       ),
